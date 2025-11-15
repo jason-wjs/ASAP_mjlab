@@ -1,0 +1,31 @@
+# @package _global_
+
+# Env structure
+simulator:
+  _target_: humanoidverse.simulator.mjlab.mjlab.MJLab
+  _recursive_: False
+  config:
+    name: "mjlab"
+    terrain: ${terrain}
+    sim:
+      fps: 500
+      # BeyondMimic MuJoCo parameters
+      dt: 0.005            # physics timestep
+      substeps: 10         # internal substeps per env step
+      solver_iterations: 20
+      ls_iterations: 30
+      njmax: 2500
+      nconmax: 1000
+      control_decimation: 1  # with dt*substeps=0.02s matches prior 20ms step
+      render_mode: "human"  # not used yet
+      nan_guard:
+        enable: true
+      viewer:
+        mode: auto   # auto | viser | native | none
+        render_interval: 1
+    scene:
+      num_envs: ${num_envs}
+      env_spacing: ${env.config.env_spacing}
+    # MuJoCo size limits to avoid constraint overflow
+
+    

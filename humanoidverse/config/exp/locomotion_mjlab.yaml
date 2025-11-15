@@ -1,0 +1,9 @@
+# @package _global_
+
+defaults:
+  - /algo: ppo
+  - /env: locomotion
+  - /simulator: mjlab
+
+experiment_name: Locomotion_MJLab
+

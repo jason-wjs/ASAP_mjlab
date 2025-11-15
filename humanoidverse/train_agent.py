@@ -12,10 +12,7 @@ import logging
 from loguru import logger
 
 
-
-
 from utils.config_utils import *  # noqa: E402, F403
-
 
 @hydra.main(config_path="config", config_name="base", version_base="1.1")
 def main(config: OmegaConf):

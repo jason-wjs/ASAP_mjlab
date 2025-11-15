@@ -1,0 +1,9 @@
+# @package _global_
+
+defaults:
+  - /algo: ppo
+  - /env: motion_tracking
+  - /simulator: mjlab
+
+experiment_name: MotionTracking_MJLab
+

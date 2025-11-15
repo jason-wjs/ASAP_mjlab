@@ -409,6 +409,8 @@ class LeggedRobotMotionTracking(LeggedRobotBase):
             # self.robot_root_states[env_ids, 2] += 0.04 # in case under the terrain
             if self.config.simulator.config.name == 'isaacgym':
                 self.simulator.robot_root_states[env_ids, 3:7] = motion_res['root_rot'][env_ids]
+            elif self.config.simulator.config.name == 'mjlab':
+                self.simulator.robot_root_states[env_ids, 3:7] = xyzw_to_wxyz(motion_res['root_rot'][env_ids])
             elif self.config.simulator.config.name == 'isaacsim':
                 self.simulator.robot_root_states[env_ids, 3:7] = xyzw_to_wxyz(motion_res['root_rot'][env_ids])
             elif self.config.simulator.config.name == 'genesis':
@@ -443,6 +445,8 @@ class LeggedRobotMotionTracking(LeggedRobotBase):
                 self.simulator.robot_root_states[env_ids, 3:7] = quat_mul(self.small_random_quaternions(root_rot.shape[0], root_rot_noise), root_rot, w_last=True)
             elif self.config.simulator.config.name == 'mujoco':
                 self.simulator.robot_root_states[env_ids, 3:7] = quat_mul(self.small_random_quaternions(root_rot.shape[0], root_rot_noise), root_rot, w_last=True)
+            elif self.config.simulator.config.name == 'mjlab':
+                self.simulator.robot_root_states[env_ids, 3:7] = xyzw_to_wxyz(quat_mul(self.small_random_quaternions(root_rot.shape[0], root_rot_noise), root_rot, w_last=True))
             else:
                 raise NotImplementedError
             self.simulator.robot_root_states[env_ids, 7:10] = root_vel + torch.randn_like(root_vel) * root_vel_noise
@@ -513,11 +517,14 @@ class LeggedRobotMotionTracking(LeggedRobotBase):
 
             root_trans = self.simulator.robot_root_states[:, 0:3].cpu()
             if self.config.simulator.config.name == "isaacgym":
-                root_rot = self.simulator.robot_root_states[:, 3:7].cpu() # xyzw
+                root_rot = self.simulator.robot_root_states[:, 3:7].cpu()  # xyzw
             elif self.config.simulator.config.name == "isaacsim":
-                root_rot = self.simulator.robot_root_states[:, [4, 5, 6, 3]].cpu() # wxyz to xyzw   
+                root_rot = self.simulator.robot_root_states[:, [4, 5, 6, 3]].cpu()  # wxyz to xyzw
             elif self.config.simulator.config.name == "genesis":
-                root_rot = self.simulator.robot_root_states[:,  3:7].cpu() # xyzw
+                root_rot = self.simulator.robot_root_states[:, 3:7].cpu()  # xyzw
+            elif self.config.simulator.config.name == "mjlab":
+                # MJLab adapter exposes root quaternion as XYZW in robot_root_states
+                root_rot = self.simulator.robot_root_states[:, 3:7].cpu()  # it is already xyzw
             else:
                 raise NotImplementedError
             root_rot_vec = torch.from_numpy(sRot.from_quat(root_rot.numpy()).as_rotvec()).float()

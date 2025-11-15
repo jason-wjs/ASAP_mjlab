@@ -112,7 +112,7 @@ def process_motion(key_names, key_name_to_pkls, cfg):
             optimizer_pose = torch.optim.Adadelta([dof_pos_new],lr=100)
             optimizer_root = torch.optim.Adam([root_rot_new, root_pos_offset],lr=0.01)
 
-            kernel_size = 5  # Size of the Gaussian kernel
+            kernel_size = 5  /home/wujs/Projects/ASAP/humanoidverse/data/motions/raw_tairantestbed_smpl/video_CR7_level2_filter_amass.npz# Size of the Gaussian kernel
             sigma = 0.75  # Standard deviation of the Gaussian kernel
             B, T, J, D = dof_pos_new.shape 
 
