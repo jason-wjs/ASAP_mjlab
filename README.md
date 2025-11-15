@@ -204,30 +204,33 @@ pip install genesis-world torch
 
 MJLab is a lightweight, GPU-accelerated MuJoCo backend following the Isaac Lab API style. HumanoidVerse includes a native adapter under `humanoidverse/simulator/mjlab` and a Hydra config at `humanoidverse/config/simulator/mjlab.yaml`.
 
-Environment (example):
+### Environment (example):
 ```bash
 conda create -n ASAP_mjlab python=3.11
 conda activate ASAP_mjlab
 pip install torch 
+```
 
+### install mjlab
+```bash
+# install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
 # install mjlab
 git clone https://github.com/mujocolab/mjlab.git
 cd mjlab
 uv sync
 uv pip install -e .
+```
 
-# install ASAP
+### install ASAP
+```bash
 cd ASAP
 pip install -e .
 pip install -e isaac_utils
-
-# data vis
-python scripts/vis/vis_q_mj.py +robot=g1/g1_29dof_anneal_23dof +visualize_motion_file="/home/wujs/Projects/ASAP/humanoidverse/data/motions/g1_29dof_anneal_23dof/TairanTestbed/singles/0-motions_raw_tairantestbed_smpl_video_jump_degree_level3_filter_amass.pkl"
-
-# Optional for headless rendering
-export MUJOCO_GL=egl
 ```
+
 Quick test (motion_tracking, single env):
+
 ```bash
 HYDRA_FULL_ERROR=1 python humanoidverse/train_agent.py \
 +simulator=mjlab \
@@ -241,6 +244,11 @@ num_envs=1 \
 experiment_name=motion_tracking_mjlab.yaml \
 robot.motion.motion_file="/home/wujs/Projects/ASAP/humanoidverse/data/motions/g1_29dof_anneal_23dof/TairanTestbed/singles/0-motions_raw_tairantestbed_smpl_video_side_jump_level3_filter_amass.pkl" \
 simulator.config.sim.viewer.mode=viser headless=False 
+```
+
+data vis:
+```bash
+python scripts/vis/vis_q_mj.py +robot=g1/g1_29dof_anneal_23dof +visualize_motion_file="/home/wujs/Projects/ASAP/humanoidverse/data/motions/g1_29dof_anneal_23dof/TairanTestbed/singles/0-motions_raw_tairantestbed_smpl_video_jump_degree_level3_filter_amass.pkl"
 ```
 
 nan-vis

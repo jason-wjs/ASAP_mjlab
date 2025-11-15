@@ -61,7 +61,9 @@ class MjlabBackend:
                 pass
         sim = Simulation(num_envs=num_envs, cfg=sim_cfg, model=mj_model, device=str(sim_device))
 
-        scene.initialize(sim.mj_model, sim.wp_model, sim.wp_data)
+        # Use mjlab's high-level bridges (Simulation.model/data) instead of raw
+        # mjwarp structures to match the current mjlab API.
+        scene.initialize(sim.mj_model, sim.model, sim.data)
 
         self.scene = scene
         self.sim = sim
