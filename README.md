@@ -210,9 +210,13 @@ conda create -n ASAP_mjlab python=3.11
 conda activate ASAP_mjlab
 pip install torch 
 
+# install mjlab
+git clone https://github.com/mujocolab/mjlab.git
 cd mjlab
+uv sync
 uv pip install -e .
 
+# install ASAP
 cd ASAP
 pip install -e .
 pip install -e isaac_utils
