@@ -206,8 +206,8 @@ MJLab is a lightweight, GPU-accelerated MuJoCo backend following the Isaac Lab A
 
 Environment (example):
 ```bash
-mamba create -n ASAP_mjlab python=3.11
-mamba activate ASAP_mjlab
+conda create -n ASAP_mjlab python=3.11
+conda activate ASAP_mjlab
 pip install torch 
 
 cd mjlab
@@ -216,7 +216,6 @@ uv pip install -e .
 cd ASAP
 pip install -e .
 pip install -e isaac_utils
-
 
 # data vis
 python scripts/vis/vis_q_mj.py +robot=g1/g1_29dof_anneal_23dof +visualize_motion_file="/home/wujs/Projects/ASAP/humanoidverse/data/motions/g1_29dof_anneal_23dof/TairanTestbed/singles/0-motions_raw_tairantestbed_smpl_video_jump_degree_level3_filter_amass.pkl"
@@ -240,19 +239,14 @@ robot.motion.motion_file="/home/wujs/Projects/ASAP/humanoidverse/data/motions/g1
 simulator.config.sim.viewer.mode=viser headless=False 
 ```
 
-'''
+nan-vis
+```bash
 uv run viz-nan /tmp/mjlab/nan_dumps/nan_dump_latest.npz
-'''
+```
 
 Notes:
 - Ensure the robot MJCF exists at the path resolved by `robot.asset.asset_root` and `robot.asset.xml_file` (defaults under `humanoidverse/data/robots`).
 - MJLab solver/size parameters can be tuned in `config/simulator/mjlab.yaml` (e.g., `substeps`, `solver_iterations`, `njmax`, `nconmax`).
-Install dependencies:
-
-```bash
-pip install -e .
-pip install -e isaac_utils
-```
 
 
 # Motion Tracking Training
