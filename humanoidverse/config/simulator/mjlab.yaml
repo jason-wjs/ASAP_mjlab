@@ -11,12 +11,12 @@ simulator:
       fps: 500
       # BeyondMimic MuJoCo parameters
       dt: 0.005            # physics timestep
-      substeps: 10         # internal substeps per env step
+      substeps: 1         # internal substeps per env step
       solver_iterations: 20
-      ls_iterations: 30
-      njmax: 2500
-      nconmax: 1000
-      control_decimation: 1  # with dt*substeps=0.02s matches prior 20ms step
+      ls_iterations: 20
+      njmax: 250
+      nconmax: 35
+      control_decimation: 4  # with dt*substeps=0.02s matches prior 20ms step
       render_mode: "human"  # not used yet
       nan_guard:
         enable: true

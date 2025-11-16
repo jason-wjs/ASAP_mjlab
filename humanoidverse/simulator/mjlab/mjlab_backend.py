@@ -101,7 +101,7 @@ class MjlabBackend:
         d = self.sim.data
         d.qpos[env_ids, 0:3] = pos
         d.qpos[env_ids, 3:7] = quat_wxyz
-        # 🔧 修复：MuJoCo qvel 格式是 [线速度, 角速度]
+        # MuJoCo qvel 格式是 [线速度, 角速度]
         d.qvel[env_ids, 0:3] = lin_vel  # 线速度在前
         d.qvel[env_ids, 3:6] = ang_vel  # 角速度在后
 
