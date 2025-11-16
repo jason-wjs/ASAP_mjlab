@@ -59,3 +59,13 @@ AMASS/*
 *.sh
 *.txt
 
+debug_cvel_transform.py
+debug_dof_state_format.py
+COMPLETE_DEBUG_SUMMARY.md
+debug_joint_directions.py
+debug_mjlab_joints.py
+debug_root_velocity_source.py
+debug_sim_params_comparison.py
+debug_torque_direction.py
+test_mjlab_fix.sh
+test_mujoco_format.py
