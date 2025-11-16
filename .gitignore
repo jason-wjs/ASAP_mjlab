@@ -69,3 +69,4 @@ debug_sim_params_comparison.py
 debug_torque_direction.py
 test_mjlab_fix.sh
 test_mujoco_format.py
+analyze_nan_dump.py
