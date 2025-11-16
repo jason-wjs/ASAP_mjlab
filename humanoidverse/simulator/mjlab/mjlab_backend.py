@@ -86,14 +86,11 @@ class MjlabBackend:
     # -------- Raw state I/O --------
     def get_raw_state(self) -> Dict[str, torch.Tensor]:
         d = self.sim.data
-        # Return raw MuJoCo batched views: positions, rotations (wxyz), composite velocities and external contact forces
-        # Note: MuJoCo/Warp expose body quaternions in XYZW order. For backward
-        # compatibility we keep the old key name but also provide an explicit
-        # "xquat_xyzw" alias.
+        # Return raw MuJoCo batched views.
+        # MuJoCo uses WXYZ for quaternions in xquat.
         return {
             "xpos": d.xpos,
-            "xquat_wxyz": d.xquat,   # actually XYZW; prefer using "xquat_xyzw"
-            "xquat_xyzw": d.xquat,
+            "xquat_wxyz": d.xquat,
             "cvel": d.cvel,
             "cfrc_ext": getattr(d, "cfrc_ext", None),
             "qpos": d.qpos,

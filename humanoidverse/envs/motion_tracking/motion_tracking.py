@@ -288,6 +288,8 @@ class LeggedRobotMotionTracking(LeggedRobotBase):
         # ang_vel_reward = self._reward_teleop_body_ang_velocity_extend()
 
 
+        # Update the default DOF position to match the reference motion for the PD controller
+        self.default_dof_pos = ref_joint_pos
 
         
         ## diff compute - kinematic joint position

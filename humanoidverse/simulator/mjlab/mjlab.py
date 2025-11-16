@@ -95,7 +95,7 @@ class MJLab(BaseSimulator):
         # Build scene with plane terrain and a single robot entity from MJCF
         # Resolve MJCF path robustly with multiple candidates
         asset_root = str(self.robot_cfg.asset.asset_root)
-        xml_file = str(self.robot_cfg.asset.xml_file)
+        xml_file = str(self.robot_cfg.asset.xml_file) 
 
         candidates = []
         # 1) Absolute xml_file wins
@@ -158,64 +158,84 @@ class MJLab(BaseSimulator):
     def load_assets(self):
         # Build mappings from model using configured dof/body names
         model = self.mj_model
-
-        # Body names (exclude world body at index 0)
-        # Normalize names by removing "robot/" prefix to match IsaacGym behavior
         import mujoco
         all_body_names = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, i) for i in range(model.nbody)]
-        # Remove "robot/" prefix from body names for consistency
-        normalized_body_names = []
-        for name in all_body_names[1:]:  # Skip world body
-            if name and name.startswith("robot/"):
-                normalized_body_names.append(name[6:])  # Remove "robot/" prefix
-            else:
-                normalized_body_names.append(name)
-        # Expose body list in the same order as configured body_names so that
-        # indices computed via `simulator._body_list.index(name)` match the
-        # layout of `_rigid_body_*` tensors (which are reordered to config order).
-        self._body_list = list(self.robot_cfg.body_names)
+        all_joint_names = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, i) for i in range(model.njnt)]
 
+        # Create a list of all body names from the model, excluding the world body
+        model_body_names = [name for name in all_body_names[1:] if name]
+
+        # Create a list of all joint names from the model
+        model_joint_names = [name for name in all_joint_names if name]
+
+        # --- Body Mapping ---
         self.body_names = list(self.robot_cfg.body_names)
         self.num_bodies = len(self.body_names)
+        self._body_list = list(self.robot_cfg.body_names) # For compatibility with find_rigid_body_indice
 
-        # Map configured body order to model indices
         body_indices = []
+        body_map_info = []
         for name in self.body_names:
-            try:
-                # Use normalize function to handle naming mismatches
-                normalized_name = normalize_name_for_mjlab(name, model, mujoco.mjtObj.mjOBJ_BODY)
-                idx = all_body_names.index(normalized_name)
-                body_indices.append(idx)
-            except ValueError as e:
-                raise ValueError(f"Body name '{name}' not found in MuJoCo model: {e}")
-        self._body_indices = body_indices
+            # Try to find the body with potential prefixes
+            found = False
+            for prefix in ["", "robot/"]: # Add other potential prefixes if needed
+                candidate_name = f"{prefix}{name}"
+                if candidate_name in all_body_names:
+                    idx = all_body_names.index(candidate_name)
+                    body_indices.append(idx)
+                    body_map_info.append(f"  '{name}' -> '{candidate_name}' (idx: {idx})")
+                    found = True
+                    break
+            if not found:
+                raise ValueError(f"Body name '{name}' not found in MuJoCo model. Searched variants. Model bodies: {model_body_names}")
 
-        # DOF names mapping to model joint ids
+        self._body_indices = body_indices
+        logger.info("MJLab body mapping (config -> model):")
+        for line in body_map_info:
+            logger.info(line)
+
+        # --- DOF/Joint Mapping ---
         self.dof_names = list(self.robot_cfg.dof_names)
         self.num_dof = len(self.dof_names)
 
         joint_ids = []
+        joint_map_info = []
+        logger.info("--- MJLab Joint Mapping ---")
         for name in self.dof_names:
-            try:
-                # Use normalize function to handle naming mismatches
-                normalized_name = normalize_name_for_mjlab(name, model, mujoco.mjtObj.mjOBJ_JOINT)
-                jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, normalized_name)
-                if jid < 0:
-                    raise ValueError(f"Joint not found after normalization")
-                joint_ids.append(jid)
-            except ValueError as e:
-                raise ValueError(f"Joint (dof) name '{name}' not found in MuJoCo model: {e}")
-        self._joint_ids = joint_ids
+            # Try to find the joint with potential prefixes
+            found = False
+            for prefix in ["", "robot/"]: # Add other potential prefixes if needed
+                candidate_name = f"{prefix}{name}"
+                try:
+                    jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, candidate_name)
+                    if jid >= 0:
+                        dof_adr = model.jnt_dofadr[jid]
+                        logger.info(f"  - Config name: '{name}' -> Model name: '{candidate_name}' | ID: {jid}, Qvel Addr: {dof_adr}")
+                        joint_ids.append(jid)
+                        found = True
+                        break
+                except ValueError:
+                    continue # Try next prefix
+            if not found:
+                raise ValueError(f"Joint (dof) name '{name}' not found in MuJoCo model. Searched variants. Model joints: {model_joint_names}")
 
-        # Compute qpos and qvel addresses for the joints (exclude free joint)
+        self._joint_ids = joint_ids
+        # logger.info("MJLab joint mapping (config -> model):")
+        # for line in joint_map_info:
+        #     logger.info(line)
+
+
+        # Compute qpos and qvel addresses for the joints
         jnt_qposadr = torch.tensor([int(model.jnt_qposadr[i]) for i in joint_ids], device=self.device, dtype=torch.long)
         jnt_dofadr = torch.tensor([int(model.jnt_dofadr[i]) for i in joint_ids], device=self.device, dtype=torch.long)
         self._joint_q_adr = jnt_qposadr
         self._joint_v_adr = jnt_dofadr
 
         # basic assertions align with config sizes
-        assert self.num_dof == len(self.robot_cfg.dof_names)
-        assert self.num_bodies == len(self.robot_cfg.body_names)
+        assert self.num_dof == len(self.robot_cfg.dof_names), "Mismatch in DOF count"
+        assert self.num_bodies == len(self.robot_cfg.body_names), "Mismatch in body count"
+        assert len(self._body_indices) == self.num_bodies, "Not all configured bodies were found in the model"
+        assert len(self._joint_ids) == self.num_dof, "Not all configured joints were found in the model"
 
     def create_envs(self, num_envs, env_origins, base_init_state):
         # Cache basics
@@ -316,56 +336,16 @@ class MJLab(BaseSimulator):
         
         Returns the index in self.body_names (the configured body order),
         NOT the MuJoCo model body index.
-        
-        For extend_config parent lookups, this returns the index to use
-        when indexing simulator._rigid_body_pos[:, index] or 
-        simulator._rigid_body_rot[:, index].
-        
-        The _rigid_body_* tensors have shape [num_envs, num_bodies] where
-        num_bodies is len(self.body_names), not the total MuJoCo model bodies.
-        
-        For virtual bodies (from extend_config), returns the index where they
-        will be placed: num_bodies + position_in_extend_list.
         """
-        # Try to find in configured body_names (this is the primary path)
-        if body_name in self.body_names:
+        try:
             # Return the index in body_names, which is the index in _rigid_body_* tensors
             return self.body_names.index(body_name)
-        
-        # Check if this is a virtual body that will be added via extend_config
-        # Virtual bodies are appended to _body_list in _init_motion_extend()
-        # Their indices in the extended tensors will be: num_bodies + extend_index
-        if hasattr(self, 'robot_cfg') and hasattr(self.robot_cfg, 'motion'):
-            motion_cfg = self.robot_cfg.motion
-            if hasattr(motion_cfg, 'extend_config') and motion_cfg.extend_config:
-                # Check if body_name matches any joint_name in extend_config
-                for i, ext_cfg in enumerate(motion_cfg.extend_config):
-                    if ext_cfg.get('joint_name') == body_name:
-                        # This is a virtual body, return its future index
-                        # It will be at position: num_bodies + i
-                        future_index = self.num_bodies + i
-                        logger.debug(
-                            f"Body '{body_name}' is a virtual body from extend_config[{i}]. "
-                            f"Returning future index: {future_index}"
-                        )
-                        return future_index
-        
-        # If not in body_names and not a known virtual body, it might be in _body_list
-        # (which includes all MuJoCo bodies with normalized names)
-        if self._body_list and body_name in self._body_list:
-            # Find the MuJoCo model index (body_list index + 1 for world body)
-            mj_idx = self._body_list.index(body_name) + 1
-            # Check if this MuJoCo index is in _body_indices
-            if mj_idx in self._body_indices:
-                # Return the position in _body_indices, which is the configured index
-                return self._body_indices.index(mj_idx)
-        
-        # Body not found anywhere
-        raise ValueError(
-            f"Body '{body_name}' not found in configured body_names {self.body_names}. "
-            f"For extend_config, parent_name must reference a body in robot.body_names, "
-            f"and joint_name will be added as virtual body."
-        )
+        except ValueError:
+            # If not found, raise an error with a helpful message.
+            raise ValueError(
+                f"Body '{body_name}' not found in configured `robot.body_names` list. "
+                f"Available bodies: {self.body_names}"
+            )
 
     def prepare_sim(self):
         # Advance once and populate tensors
@@ -376,13 +356,22 @@ class MJLab(BaseSimulator):
         # Read latest state from backend into exposed tensors
         raw = self._backend.get_raw_state()
 
-        # Root state: use pelvis (first body in config) as root link reference
-        root_body_idx = self._body_indices[self.body_names.index(self.body_names[0])]
+        # Root state: use the explicitly configured root_body as the reference
+        root_body_name = getattr(self.robot_cfg, "root_body", self.body_names[0])
+        if root_body_name not in self.body_names:
+            # Fallback to the first body if root_body is not in the configured list
+            logger.warning(f"Configured root_body '{root_body_name}' not in body_names. Falling back to '{self.body_names[0]}'.")
+            root_body_name = self.body_names[0]
+            
+        root_body_config_idx = self.body_names.index(root_body_name)
+        root_body_idx = self._body_indices[root_body_config_idx]
 
         base_pos = raw["xpos"][:, root_body_idx]
-        # MuJoCo/Warp xquat is XYZW. Use it directly for internal XYZW convention.
-        _xquat = raw["xquat_xyzw"] if "xquat_xyzw" in raw else raw["xquat_wxyz"]
-        base_quat_xyzw = _xquat[:, root_body_idx]
+        
+        # Backend provides quaternions in WXYZ format. Convert to XYZW for humanoidverse.
+        base_quat_wxyz = raw["xquat_wxyz"][:, root_body_idx]
+        base_quat_xyzw = base_quat_wxyz[..., [1, 2, 3, 0]]
+
         base_vel_local = raw["cvel"][:, root_body_idx]  # [wx, wy, wz, vx, vy, vz] in body frame
         local_ang = base_vel_local[..., 0:3]
         local_lin = base_vel_local[..., 3:6]
@@ -405,9 +394,11 @@ class MJLab(BaseSimulator):
         # Reorder to match humanoidverse config body order
         idx = torch.tensor(self._body_indices, device=self.device, dtype=torch.long)
         self._rigid_body_pos[:] = raw["xpos"].index_select(1, idx)
-        # Use XYZW directly for internal storage
-        _xquat = raw["xquat_xyzw"] if "xquat_xyzw" in raw else raw["xquat_wxyz"]
-        self._rigid_body_rot[:] = _xquat.index_select(1, idx)
+        
+        # Backend provides WXYZ, convert to XYZW
+        _xquat_wxyz = raw["xquat_wxyz"].index_select(1, idx)
+        self._rigid_body_rot[:] = _xquat_wxyz[..., [1, 2, 3, 0]]
+
         # Convert cvel (ang first then lin) from body-frame to world-frame
         cvel = raw["cvel"].index_select(1, idx)
         local_ang_all = cvel[..., 0:3]
