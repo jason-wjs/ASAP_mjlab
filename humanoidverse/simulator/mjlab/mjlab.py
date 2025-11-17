@@ -372,12 +372,44 @@ class MJLab(BaseSimulator):
         base_quat_wxyz = raw["xquat_wxyz"][:, root_body_idx]
         base_quat_xyzw = base_quat_wxyz[..., [1, 2, 3, 0]]
 
+        # 🔍 诊断: 对比两种根部速度读取方式
+        # 方法 1: 从 qvel 直接读取 (世界坐标系)
+        qvel_lin_vel = raw["qvel"][:, 0:3]
+        qvel_ang_vel = raw["qvel"][:, 3:6]
+        
+        # 方法 2: 从 cvel 读取并转换 (体坐标系→世界坐标系) - 当前方法
         base_vel_local = raw["cvel"][:, root_body_idx]  # [wx, wy, wz, vx, vy, vz] in body frame
         local_ang = base_vel_local[..., 0:3]
         local_lin = base_vel_local[..., 3:6]
         # Rotate to world frame using body orientation
-        base_ang_vel = quat_apply(base_quat_xyzw, local_ang)
-        base_lin_vel = quat_apply(base_quat_xyzw, local_lin)
+        cvel_ang_vel = quat_apply(base_quat_xyzw, local_ang)
+        cvel_lin_vel = quat_apply(base_quat_xyzw, local_lin)
+        
+        # 🔍 对比差异 (仅在单环境时打印,避免日志爆炸)
+        if self.num_envs == 1 and not hasattr(self, '_velocity_diff_logged'):
+            lin_diff = torch.abs(qvel_lin_vel - cvel_lin_vel).max()
+            ang_diff = torch.abs(qvel_ang_vel - cvel_ang_vel).max()
+            if lin_diff > 1e-4 or ang_diff > 1e-4:
+                logger.warning(f"🔴 Root velocity mismatch! qvel vs cvel:")
+                logger.warning(f"  qvel lin: {qvel_lin_vel[0]}")
+                logger.warning(f"  cvel lin: {cvel_lin_vel[0]}")
+                logger.warning(f"  lin diff: {lin_diff:.6f}")
+                logger.warning(f"  qvel ang: {qvel_ang_vel[0]}")
+                logger.warning(f"  cvel ang: {cvel_ang_vel[0]}")
+                logger.warning(f"  ang diff: {ang_diff:.6f}")
+                logger.warning(f"  Consider using qvel directly for root velocity!")
+                self._velocity_diff_logged = True
+            elif not hasattr(self, '_velocity_match_logged'):
+                logger.info(f"✅ Root velocity match: qvel vs cvel (diff < 1e-4)")
+                self._velocity_match_logged = True
+        
+        # 🔧 TODO: 如果发现差异,尝试改用 qvel
+        # base_lin_vel = qvel_lin_vel
+        # base_ang_vel = qvel_ang_vel
+        
+        # 当前仍使用 cvel 方法
+        base_ang_vel = cvel_ang_vel
+        base_lin_vel = cvel_lin_vel
 
         self.base_quat[:] = base_quat_xyzw
         self.all_root_states[:, 0:3] = base_pos

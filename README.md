@@ -215,11 +215,17 @@ pip install torch
 ```bash
 # install uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
-# install mjlab
+# clone mjlab (official)
 git clone https://github.com/mujocolab/mjlab.git
 cd mjlab
+# checkout the exact version 
+git checkout 2309ffbd5625f3c4e2594189b59144dfc8875bcc
+# install dependencies + editable mode
 uv sync
 uv pip install -e .
+# set environment variables
+export MJLAB_ROOT=$(pwd)
+export PYTHONPATH=$MJLAB_ROOT:$PYTHONPATH
 ```
 
 ### install ASAP
